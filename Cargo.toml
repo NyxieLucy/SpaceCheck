@@ -1,7 +1,12 @@
 [package]
-name = "SpaceCheck"
+name = "disk-tui"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-ratatui = "0.30.2"
+ratatui = "0.28"
+crossterm = "0.28"
+jwalk = "0.8"
+trash = "5.0"
+humansize = "2.1"
+anyhow = "1.0"
