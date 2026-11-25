@@ -1,4 +1,3 @@
-use humansize::{format_size, DECIMAL};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -6,6 +5,32 @@ use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 use ratatui::Frame;
 
 use crate::app::{App, Mode};
+
+pub fn format_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 6] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+
+    if bytes == 0 {
+        return "0 B".to_string();
+    }
+
+    let mut value = bytes as f64;
+    let mut unit = 0;
+
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+
+    if unit == 0 {
+        format!("{} B", bytes)
+    } else if value >= 100.0 {
+        format!("{:.0} {}", value, UNITS[unit])
+    } else if value >= 10.0 {
+        format!("{:.1} {}", value, UNITS[unit])
+    } else {
+        format!("{:.2} {}", value, UNITS[unit])
+    }
+}
 
 pub fn draw(frame: &mut Frame, app: &App) {
     let area = frame.area();
@@ -48,12 +73,14 @@ fn draw_table(frame: &mut Frame, area: Rect, app: &App) {
         .enumerate()
         .map(|(i, entry)| {
             let bar_width = 20;
-            let filled = ((entry.size as f64 / max_size as f64) * bar_width as f64) as usize;
+            let filled = ((entry.size as f64 / max_size as f64) * bar_width as f64)
+                .round()
+                .clamp(0.0, bar_width as f64) as usize;
             let bar = format!("{}{}", "#".repeat(filled), "-".repeat(bar_width - filled));
 
             let kind = if entry.is_dir { "/" } else { " " };
             let name = format!("{}{}", entry.name, kind);
-            let size = format_size(entry.size, DECIMAL);
+            let size = format_bytes(entry.size);
 
             let style = if i == app.selected {
                 Style::default().add_modifier(Modifier::REVERSED)
@@ -123,4 +150,18 @@ fn draw_confirm_modal(frame: &mut Frame, area: Rect, app: &App, index: usize) {
 
     frame.render_widget(ratatui::widgets::Clear, modal);
     frame.render_widget(Paragraph::new(lines).block(block), modal);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_bytes;
+
+    #[test]
+    fn formats_bytes_in_binary_units() {
+        assert_eq!(format_bytes(512), "512 B");
+        assert_eq!(format_bytes(1024), "1.00 KiB");
+        assert_eq!(format_bytes(1024 * 1024), "1.00 MiB");
+        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.00 GiB");
+        assert_eq!(format_bytes(1024_u64.pow(4)), "1.00 TiB");
+    }
 }
